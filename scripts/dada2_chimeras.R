@@ -16,3 +16,4 @@ all <- mergeSequenceTables(tables = seqtabs)
 seqtab <- removeBimeraDenovo(all, method = "consensus", multithread = TRUE)
 
 saveRDS(seqtab, "../dada2_output/filtered_150/seqtab_final.rds")
+write.table("../dada2_output/filtered_150/seqtab_final.txt")
