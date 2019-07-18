@@ -42,3 +42,11 @@
   - data from this paper by Halfvarson et. al: https://www.ncbi.nlm.nih.gov/pubmed/28191884
   - halfvarson.predict.py
   
+# 11. Run piphillan
+  - Get nearest 3-letter genome code for each ASV 
+
+# 12. Get associated pathway information for each 3-letter genome code
+   - KEGG_genomes.R
+   
+# 13. Run correlation test between embedding dimensions and metabolic pathways
+  - metabolic_correlations.R
