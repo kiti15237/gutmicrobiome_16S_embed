@@ -10,34 +10,11 @@ import importlib
 importlib.reload(hf)
 import math
 import copy
+from sklearn.ensemble import RandomForestClassifier
 
 
 data_dir = "C:/Users/ctata/Documents/Lab/quality_vectors_git/data/"
 fig_dir = "C:/Users/ctata/Documents/Lab/quality_vectors_git/figures/"
-
-
-def getQualVecs():
-    qual_vec_file = data_dir + "embed/embed_.07_100dim.txt"
-    qual_vecs = pd.read_csv(qual_vec_file, sep = " ", index_col = 0, dtype = {0:str})
-    qual_repseqs = pd.read_csv(data_dir + "embed/seqs_.07.fasta", sep = "\t", header = None)
-    
-    import re
-    ids = qual_repseqs.iloc[range(0, qual_repseqs.shape[0], 2), 0]
-    ids = [re.sub(">", "", i) for i in ids.values]
-
-    seqs = qual_repseqs.iloc[range(1, qual_repseqs.shape[0], 2), 0]
-    seqs = [str(i) for i in seqs.values]
-
-    #Drop <unk> character
-    ids = ids[0: len(ids)-1]
-    seqs = seqs[0: len(seqs)-1]
-    qual_vecs = qual_vecs.iloc[0: len(seqs), :]
-
-    print(len(ids))
-    print(len(seqs))
-    print(qual_vecs.shape)
-    return(qual_vecs, ids, seqs)
-
 
 
 #Load data
@@ -58,53 +35,178 @@ f = open(data_dir + "/AG_new/map_test_" + str(filt) +  ".obj", "rb")
 map_test = pickle.load(f)
 f.close()
 
-qual_vecs, embed_ids, embed_seqs = getQualVecs()
+qual_vecs, embed_ids, embed_seqs = hf.getQualVecs(data_dir)
 
 otu_train = hf.matchOtuQual(otu_train, embed_ids, embed_seqs)
 otu_test = hf.matchOtuQual(otu_test, embed_ids, embed_seqs)
 
 
-#Normalize with asinh
+def asinFig():
+    #Normalize with asinh
+    target = "IBD"
+    f = plt.figure(figsize=(15,5))
+    X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
+                                                                target = target, asinNormalized = True)
+    X_train = pd.concat([X_train, X_val], axis = 0)
+    y_train = y_train + y_val
+    plt.subplot(1, 2, 1)
+    auc_asin, auc_train_asin, fpr_asin, tpr_asin, prec_asin, f1_asin, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "Normalized asinh Taxa Abundances " + str(X_train.shape[1]) + " features",
+                  max_depth = 2, n_estimators = 50, weight = 20, plot = True, plot_pr = True)
+
+    f.savefig(fig_dir + "curves_AGP_test_asin_tmp.pdf")
+
+
+
+def embedFig():
+    #Embed
+    f = plt.figure(figsize=(15,5))
+    X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
+                                                                target = target, embed = True, qual_vecs = qual_vecs)
+    X_train = pd.concat([X_train, X_val], axis = 0)
+    y_train = y_train + y_val
+    plt.subplot(1, 2, 1)
+    auc_embed, auc_train_embed, fpr_embed, tpr_embed, prec_embed, f1_embed, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "Embedding weighted by averaging taxa "+ str(X_train.shape[1]) + " features",
+                  max_depth = 2, n_estimators = 50,  weight = 20, plot = True, plot_pr = True)
+
+    f.savefig(fig_dir + "curves_AGP_test_embed_tmp.pdf")
+
+
+def pcaFig():
+    f = plt.figure(figsize=(15,5))
+    X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
+                                                                target = target, pca_reduced = True, numComponents = 100)
+    X_train = pd.concat([X_train, X_val], axis = 0)
+    y_train = y_train + y_val
+    plt.subplot(1, 2, 1)
+    auc_pca, auc_train_pca, fpr_pca, tpr_pca, prec_pca, f1_pca, _  = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "PCA dimensionality reduced " + str(X_train.shape[1]) + " features", 
+                  max_depth = 2, n_estimators = 50, weight = 20, plot = True, plot_pr = True)
+    f.savefig(fig_dir + "curves_AGP_test_pca_tmp.pdf")
+
+##########################################################################
+##### Analyze decision tree to get directionality of influence #############
+##########################################################################
+importlib.reload(hf)
 target = "IBD"
-f = plt.figure(figsize=(15,5))
 X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
-                                                            target = target, asinNormalized = True)
-X_train = pd.concat([X_train, X_val], axis = 0)
-y_train = y_train + y_val
-plt.subplot(1, 2, 1)
-auc_asin, auc_train_asin, fpr_asin, tpr_asin, prec_asin, f1_asin, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "Normalized asinh Taxa Abundances " + str(X_train.shape[1]) + " features",
-              max_depth = 10, n_estimators = 65, weight = 5, plot = True, plot_pr = True)
+                                                                target = target, embed = True, qual_vecs = qual_vecs)
+X = pd.concat([X_train, X_val, X_test], axis = 0)
+y = y_train + y_val + y_test
 
-f.savefig(fig_dir + "curves_AGP_test_asin.pdf")
+auc_crossVal, auc_prec_crossVal, f1_crossVal, feat_imp_embed = hf.crossValPrediction(X, y, max_depth = 2, n_estimators = 50,  weight = 20)
+feat_imp_df = hf.getFeatImpDf(feat_imp_embed)
 
+pathway_table = pd.read_csv(data_dir + "pathways/property_pathway_dict.txt",
+                            sep= "\t", dtype= {"pathway_id": 'object'})
+pathway_table = pathway_table.set_index('dim')
+tmp = pathway_table.loc[feat_imp_df.index.values, :]
+feat_imp_df_paths = pd.merge(feat_imp_df, tmp, left_index = True, right_index = True)
 
-# In[ ]:
-
-
-#Embed
-f = plt.figure(figsize=(15,5))
-X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
-                                                            target = target, embed = True, qual_vecs = qual_vecs)
-X_train = pd.concat([X_train, X_val], axis = 0)
-y_train = y_train + y_val
-plt.subplot(1, 2, 1)
-auc_embed, auc_train_embed, fpr_embed, tpr_embed, prec_embed, f1_embed, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "Embedding weighted by averaging taxa "+ str(X_train.shape[1]) + " features",
-              max_depth = 10, n_estimators = 170,  weight = 5, plot = True, plot_pr = True)
-
-f.savefig(fig_dir + "curves_AGP_test_embed.pdf")
+max_depth = 2
+n_estimators = 50
+weight = 20
+weights = {0:1, 1:weight}
+m = RandomForestClassifier(max_depth= max_depth, random_state=0, n_estimators=n_estimators, class_weight = weights)
+m.fit(X, y)
 
 
-# In[ ]:
+def getLeafInx(estimator):
+    leaf_inx = np.where([i == -1 and j == -1 for i,j in zip(estimator.tree_.children_left, estimator.tree_.children_right)])
+    return(leaf_inx[0])
+
+def getLabels(estimator):
+    value = estimator.tree_.value
+    leaf_inx = getLeafInx(estimator)
+    labels = []
+    for val_set in value[leaf_inx]:
+        val_set = np.squeeze(val_set)
+        if val_set[0] > val_set[1]:
+            val = "HC"
+        else:
+            val = "IBD"
+        labels.append(val)
+    return(labels)
+
+def associate_one_level(feature, label_left, label_right):
+    associations[feature][label_right] += 1
+    associations[feature][label_left] -= 1
+    
+def left_side_propogate(feature, label_left, label_right):
+    if label_left == label_right:
+        associations[features[0]][label_left] -= 1 #Doesn't matter which label, they're equal
+    else:
+        associate_one_level(feature, label_left, label_right)
+
+def right_side_propogate(feature, label_left, label_right):
+    if label_left == label_right:
+        associations[features[0]][label_left] += 1
+    else:
+        associate_one_level(feature, label_left, label_right)
+
+def getAssociation(associations, i):
+    if associations[i]['IBD'] > associations[i]['HC']:
+        return('IBD')
+    if associations[i]['IBD'] == associations[i]['HC']:
+        return('EQ')
+    else: 
+        return('HC')
+    
+def getDiffMag(associations, i):
+    return(np.abs(associations[i]['IBD'] - associations[i]['HC']))
 
 
-#PCA
-f = plt.figure(figsize=(15,5))
-X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
-                                                            target = target, pca_reduced = True, numComponents = 100)
-X_train = pd.concat([X_train, X_val], axis = 0)
-y_train = y_train + y_val
-plt.subplot(1, 2, 1)
-auc_pca, auc_train_pca, fpr_pca, tpr_pca, prec_pca, f1_pca, _  = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "PCA dimensionality reduced " + str(X_train.shape[1]) + " features", 
-              max_depth = 3, n_estimators = 110, weight = 5, plot = True, plot_pr = True)
-f.savefig(fig_dir + "curves_AGP_test_pca.pdf")
+associations = {}
+estimators = m.estimators_
+i = 0
+for estimator in estimators:
+    #print(i)
+    features = estimator.tree_.feature + 1 # the forest starts labeling it's features at 0, we start at 1
+    features = features[features > 0]
+    labels = getLabels(estimator)
+    leaf_inx = getLeafInx(estimator)
+    op1 = [2, 3, 5, 6] #full set of nodes
+    op2 = [2,3,4] #no test node right
+    op3 = [1, 3, 4] # no test node left
+    for feat in features:
+        if not feat in associations:
+            associations[feat] = {'IBD': 0, 'HC':0}
 
+    if np.array_equal(leaf_inx , op1):
+        left_side_propogate(features[1], labels[0], labels[1])
+        right_side_propogate(features[2], labels[2], labels[3])
+
+    if np.array_equal(leaf_inx , op2):
+        left_side_propogate(features[1], labels[0], labels[1])
+        associations[features[0]][labels[2]] += 1
+
+    if np.array_equal(leaf_inx , op3):
+        right_side_propogate(features[1], labels[1], labels[2])
+        associations[features[0]][labels[0]] -=1
+        
+    i += 1
+print(associations)
+
+
+#Rename pos_association keys to match the actual feature names
+
+associations_new = {}
+for key in  associations.keys():
+    associations_new[X.columns.values[key - 1]] = associations[key]
+    
+
+association = np.array(['NA '] * feat_imp_df.shape[0])
+diffMag = np.zeros(feat_imp_df.shape[0])
+i = 0
+for prop in feat_imp_df_paths.index.values:
+    if prop in associations_new.keys():
+        association[i] = getAssociation(associations_new, prop)
+        diffMag[i] = getDiffMag(associations_new, prop)
+    else:
+        association[i] = "NA"
+    i +=1
+    
+    
+
+feat_imp_df_paths.insert(3, "Association", association)
+feat_imp_df_paths.insert(4, "Diff Num. Trees Associated", diffMag)
+feat_imp_df_paths
+feat_imp_df_paths.to_csv(data_dir + "AG_new/metabolic_pathways_importance.csv")

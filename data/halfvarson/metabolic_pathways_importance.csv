@@ -1,0 +1,101 @@
+,cum_importance,pathway_id,pathway_names,Association,Diff Num. Trees Associated
+property_100_48,0.4290957557427056,05130,Pathogenic Escherichia coli infection,CD,6.0
+property_100_76,0.4022292911113527,00984,Steroid degradation,CD,13.0
+property_100_61,0.38444061002195296,00311,Penicillin and cephalosporin biosynthesis,CD,15.0
+property_100_44,0.29323674298637586,00030,Pentose phosphate pathway,UC,8.0
+property_100_68,0.21796715976767098,00625,Chloroalkane and chloroalkene degradation,CD,5.0
+property_100_24,0.17776064592659613,03050,Proteasome,CD,6.0
+property_100_23,0.17444852804444513,00984,Steroid degradation,UC,2.0
+property_100_64,0.16504582311176058,01057,Biosynthesis of type II polyketide products,CD,10.0
+property_100_6,0.15578850404373984,00790,Folate biosynthesis,UC,4.0
+property_100_72,0.1211826918015707,01059,Biosynthesis of enediyne antibiotics,CD,2.0
+property_100_19,0.11612287540466958,00404,Staurosporine biosynthesis,CD,3.0
+property_100_47,0.11454819359152918,00785,Lipoic acid metabolism,NA,0.0
+property_100_96,0.10106909470101062,00910,Nitrogen metabolism,CD,3.0
+property_100_20,0.09623763417037631,00562,Inositol phosphate metabolism,UC,4.0
+property_100_46,0.09537826670210801,05110,Vibrio cholerae infection,CD,4.0
+property_100_91,0.09367154217949256,00220,Arginine biosynthesis,CD,1.0
+property_100_35,0.0929185990219446,03050,Proteasome,NA,0.0
+property_100_58,0.08536899067538632,00720,Carbon fixation pathways in prokaryotes,UC,1.0
+property_100_89,0.08427404856841879,01053,Biosynthesis of siderophore group nonribosomal peptides,EQ,0.0
+property_100_21,0.07749839414232661,01501,beta-Lactam resistance,CD,3.0
+property_100_56,0.07169561337147415,00984,Steroid degradation,NA,0.0
+property_100_43,0.07057103858581582,01501,beta-Lactam resistance,CD,6.0
+property_100_27,0.06946078664737908,00791,Atrazine degradation,UC,2.0
+property_100_94,0.06517741084619325,00471,D-Glutamine and D-glutamate metabolism,CD,4.0
+property_100_74,0.062253199094997554,00524,"Neomycin, kanamycin and gentamicin biosynthesis",UC,2.0
+property_100_80,0.061787143459270624,00072,Synthesis and degradation of ketone bodies,CD,2.0
+property_100_28,0.057744499562385615,00511,Other glycan degradation,NA,0.0
+property_100_15,0.057158694579267796,00440,Phosphonate and phosphinate metabolism,NA,0.0
+property_100_10,0.04988528830174219,01051,Biosynthesis of ansamycins,CD,3.0
+property_100_18,0.04965464024327358,00260,"Glycine, serine and threonine metabolism",UC,3.0
+property_100_32,0.049645316294052985,00984,Steroid degradation,NA,0.0
+property_100_33,0.04916464861528011,00780,Biotin metabolism,CD,6.0
+property_100_70,0.045854885912301704,00525,Acarbose and validamycin biosynthesis,NA,0.0
+property_100_90,0.04560470244958121,00710,Carbon fixation in photosynthetic organisms,UC,2.0
+property_100_17,0.04272684675043414,00633,Nitrotoluene degradation,UC,2.0
+property_100_51,0.042161405418714645,00062,Fatty acid elongation,NA,0.0
+property_100_65,0.04053668579569261,00365,Furfural degradation,CD,5.0
+property_100_8,0.03865332805425111,00260,"Glycine, serine and threonine metabolism",NA,0.0
+property_100_13,0.0332700811785611,00760,Nicotinate and nicotinamide metabolism,NA,0.0
+property_100_69,0.03292540504546137,04621,NOD-like receptor signaling pathway,CD,3.0
+property_100_82,0.030645895484056128,00592,alpha-Linolenic acid metabolism,UC,3.0
+property_100_63,0.028945180106007884,00780,Biotin metabolism,NA,0.0
+property_100_41,0.02742071311997641,00330,Arginine and proline metabolism,NA,0.0
+property_100_92,0.025270782551929768,05150,Staphylococcus aureus infection,NA,0.0
+property_100_93,0.024514214226003136,05132,Salmonella infection,NA,0.0
+property_100_75,0.02201214536041013,00311,Penicillin and cephalosporin biosynthesis,UC,2.0
+property_100_77,0.021883902948495775,00100,Steroid biosynthesis,UC,2.0
+property_100_26,0.021740622712290974,01501,beta-Lactam resistance,CD,2.0
+property_100_22,0.021267138910805387,00052,Galactose metabolism,NA,0.0
+property_100_37,0.01935896716236825,05133,Pertussis,CD,1.0
+property_100_84,0.0184501319356118,00062,Fatty acid elongation,NA,0.0
+property_100_14,0.018201231347164785,00984,Steroid degradation,CD,2.0
+property_100_53,0.015286862516367206,00040,Pentose and glucuronate interconversions,CD,1.0
+property_100_7,0.013822728605887737,00311,Penicillin and cephalosporin biosynthesis,EQ,0.0
+property_100_34,0.013004715177774885,00601,Glycosphingolipid biosynthesis - lacto and neolacto series,NA,0.0
+property_100_16,0.01276661097449015,00625,Chloroalkane and chloroalkene degradation,NA,0.0
+property_100_62,0.012731867561382351,00471,D-Glutamine and D-glutamate metabolism,NA,0.0
+property_100_36,0.01212491051519077,00280,"Valine, leucine and isoleucine degradation",NA,0.0
+property_100_66,0.010572834299771596,00051,Fructose and mannose metabolism,NA,0.0
+property_100_97,0.010134076003687802,01054,Nonribosomal peptide structures,NA,0.0
+property_100_5,0.009595297615025986,00750,Vitamin B6 metabolism,NA,0.0
+property_100_57,0.00945283938706945,00750,Vitamin B6 metabolism,NA,0.0
+property_100_88,0.0094271657002284,00640,Propanoate metabolism,NA,0.0
+property_100_2,0.009105751396130173,00860,Porphyrin and chlorophyll metabolism,NA,0.0
+property_100_59,0.008867856056493113,00650,Butanoate metabolism,NA,0.0
+property_100_60,0.008764535232700814,00511,Other glycan degradation,NA,0.0
+property_100_4,0.008359243959021219,01501,beta-Lactam resistance,EQ,0.0
+property_100_1,0.007522125219005967,00999,Biosynthesis of secondary metabolites - unclassified,NA,0.0
+property_100_45,0.006330779414160175,05150,Staphylococcus aureus infection,NA,0.0
+property_100_99,0.0063090340356475195,04626,Plant-pathogen interaction,NA,0.0
+property_100_71,0.005495480129626498,04626,Plant-pathogen interaction,NA,0.0
+property_100_87,0.004254337393872272,01055,Biosynthesis of vancomycin group antibiotics,NA,0.0
+property_100_81,0.004066458982346826,00500,Starch and sucrose metabolism,NA,0.0
+property_100_31,0.0032112053811491743,00310,Lysine degradation,NA,0.0
+property_100_79,0.0030540254237288217,04626,Plant-pathogen interaction,NA,0.0
+property_100_3,0.0018133212325569792,00984,Steroid degradation,NA,0.0
+property_100_9,0.0,00360,Phenylalanine metabolism,CD,2.0
+property_100_11,0.0,00740,Riboflavin metabolism,NA,0.0
+property_100_12,0.0,00460,Cyanoamino acid metabolism,NA,0.0
+property_100_25,0.0,00232,Caffeine metabolism,NA,0.0
+property_100_29,0.0,00650,Butanoate metabolism,NA,0.0
+property_100_30,0.0,00511,Other glycan degradation,NA,0.0
+property_100_38,0.0,03050,Proteasome,NA,0.0
+property_100_39,0.0,01056,Biosynthesis of type II polyketide backbone,NA,0.0
+property_100_40,0.0,00404,Staurosporine biosynthesis,NA,0.0
+property_100_42,0.0,00780,Biotin metabolism,NA,0.0
+property_100_49,0.0,00052,Galactose metabolism,NA,0.0
+property_100_50,0.0,00365,Furfural degradation,NA,0.0
+property_100_52,0.0,00340,Histidine metabolism,NA,0.0
+property_100_54,0.0,00650,Butanoate metabolism,EQ,0.0
+property_100_55,0.0,00350,Tyrosine metabolism,NA,0.0
+property_100_67,0.0,00460,Cyanoamino acid metabolism,NA,0.0
+property_100_73,0.0,00910,Nitrogen metabolism,NA,0.0
+property_100_78,0.0,00052,Galactose metabolism,NA,0.0
+property_100_83,0.0,00633,Nitrotoluene degradation,NA,0.0
+property_100_85,0.0,01502,Vancomycin resistance,NA,0.0
+property_100_86,0.0,01052,Type I polyketide structures,UC,2.0
+property_100_95,0.0,00460,Cyanoamino acid metabolism,NA,0.0
+property_100_98,0.0,00040,Pentose and glucuronate interconversions,NA,0.0
+property_100_100,0.0,00365,Furfural degradation,NA,0.0
