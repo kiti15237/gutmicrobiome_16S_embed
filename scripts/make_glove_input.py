@@ -2,9 +2,11 @@ import csv
 import numpy as np
 import random
 
-f = open('/nfs3/PHARM/David_Lab/christine/public_data/AG_new/dada2_output/filtered_150/seqtab_final_filter.07_99agg.txt', 'r')
-outfile = open('/nfs3/PHARM/David_Lab/christine/public_data/AG_new/glove/glove_input_filter.07_99agg.txt', mode = 'w')
-test_samples_file = open('/nfs3/PHARM/David_Lab/christine/public_data/AG_new/dada2_output/filtered_150/test_samples_filter.07.txt', 'w')
+data_dir = "C:/Users/ctata/Documents/Lab/quality_vectors_git/data/AG_new/filter_.07/"
+
+f = open(data_dir + "seqtab_final_filter.07.txt", 'r')
+outfile = open(data_dir + 'glove_input_filter.07.txt', mode = 'w')
+test_samples_file = open(data_dir + '../test_samples.txt', 'w')
 print("filter .07")
 
 
