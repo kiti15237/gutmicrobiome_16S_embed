@@ -502,31 +502,31 @@ def getCrossValMlInput(otu_train, otu_test, map_train, map_test, target,
         
 
         if embed:
-            X_train = combineData(embed_average(otu_train_train, qual_vecs), map_train_train, naming = naming)
-            X_val = combineData(embed_average(otu_val, qual_vecs), map_val, naming = naming)
+            X_train = combineData(embed_average(otu_train_train, qual_vecs), map_train_train)
+            X_val = combineData(embed_average(otu_val, qual_vecs), map_val)
             if i == 0:
-                X_test = combineData(embed_average(otu_test, qual_vecs), map_test, naming = naming)
+                X_test = combineData(embed_average(otu_test, qual_vecs), map_test)
         elif pca_reduced:
             pca_train, pca_val, pca_test = getPCAReduced(otu_train_train, otu_val, otu_test, components = numComponents)
-            X_train = combineData(pca_train, map_train_train, naming = naming)
-            X_val = combineData(pca_val, map_val, naming = naming)
+            X_train = combineData(pca_train, map_train_train)
+            X_val = combineData(pca_val, map_val)
             if i == 0:
-                X_test = combineData(pca_test, map_test, naming = naming)
+                X_test = combineData(pca_test, map_test)
         elif asinNormalized:
-            X_train = combineData(asinh(otu_train_train), map_train_train, naming = naming)
-            X_val = combineData(asinh(otu_val), map_val, naming = naming)
+            X_train = combineData(asinh(otu_train_train), map_train_train)
+            X_val = combineData(asinh(otu_val), map_val)
             if i == 0:
-                X_test = combineData(asinh(otu_test), map_test, naming = naming)
+                X_test = combineData(asinh(otu_test), map_test)
         elif percNormalized: 
-            X_train = combineData(otu_train_train.div(otu_train_train.sum(axis=1), axis=0), map_train_train, naming = naming)
-            X_val = combineData(otu_val.div(otu_val.sum(axis=1), axis=0), map_val, naming = naming)
+            X_train = combineData(otu_train_train.div(otu_train_train.sum(axis=1), axis=0), map_train_train)
+            X_val = combineData(otu_val.div(otu_val.sum(axis=1), axis=0), map_val)
             if i == 0:
-                X_test = combineData(otu_test.div(otu_test.sum(axis=1), axis=0), map_test, naming = naming)
+                X_test = combineData(otu_test.div(otu_test.sum(axis=1), axis=0), map_test)
         elif pathwayEmbed:
-            X_train = combineData(embed_average(otu_train_train, pathway_table), map_train_train, naming = naming)
-            X_val = combineData(embed_average(otu_val, pathway_table), map_val, naming = naming)
+            X_train = combineData(embed_average(otu_train_train, pathway_table), map_train_train)
+            X_val = combineData(embed_average(otu_val, pathway_table), map_val)
             if i == 0:
-                X_test = combineData(embed_average(otu_test, pathway_table), map_test, naming = naming)
+                X_test = combineData(embed_average(otu_test, pathway_table), map_test)
         X_train_list.append(X_train)
         X_val_list.append(X_val)
        
