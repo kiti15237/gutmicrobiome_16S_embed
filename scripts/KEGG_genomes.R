@@ -1,8 +1,6 @@
-library(KEGGREST)
-library(stylo)
-library(plyr)
 
-setwd("C:/Users/ctata/Documents/Lab/quality_vectors_git/data/pathways")
+
+setwd("C:/Users/ctata/Documents/Lab/quality_vectors_git/data/")
 
 combineKOlists <- function(l){
   combo <- do.call(rbind, lapply(lapply(l, unlist), "[",
@@ -86,31 +84,43 @@ getPathwayTable <- function(otu_genome_hit_table){
 #####  Read in Piphillan output table ######
 ############################################
 
-otu_genome_hit_table <- readRDS("otu_genome_hit_table.rds")
+otu_genome_hit_table <-read_delim("otu_genome_hit_table_2.txt", "\t", escape_double = FALSE, trim_ws = TRUE)
 otu_genome_hit_table <- otu_genome_hit_table[!duplicated(otu_genome_hit_table$OTU), ]
+
+
+####################################################################
+##### Read in sequence fasta to rename with full length sequence ###
+####################################################################
+seqs_fasta <- read.table("pathways/seqs_filter.07_piph.fasta", quote="\"", comment.char="")
+headers <- gsub(">", "", as.character(seqs_fasta[seq(1, nrow(seqs_fasta), 2), ]))
+seqs <- as.character(seqs_fasta[seq(2, nrow(seqs_fasta), 2), ])
+seq_id_df <- data.frame(seqs)
+rownames(seq_id_df) <- headers
+
+otu_genome_hit_table$OTU <- seq_id_df[otu_genome_hit_table$OTU, ]
 
 ##################################################
 ###### Creates genomecode to pathway table #######
 ###### Table provided, no need to rerun    #######
 ##################################################
 
-#pathway_table <- getPathwayTable(otu_genome_hit_table)
-#saveRDS(pathway_table, "genomecode_pathway_table.rds")
+pathway_table <- getPathwayTable(otu_genome_hit_table)
+saveRDS(pathway_table, "genomecode_pathway_table_2.rds")
 
 
 #######################################
 #### Construct ASV x pathway table ####
 #######################################
 
-pathway_table <- readRDS("genomecode_pathway_table.rds")
+pathway_table <- readRDS("pathways/genomecode_pathway_table.rds")
 
 
 otu_genome_pruned <- otu_genome_hit_table[otu_genome_hit_table$NNgenome %in% rownames(pathway_table), ]
 otu_pathway_table <- pathway_table[as.character(otu_genome_pruned$NNgenome), ]
 rownames(otu_pathway_table) <- otu_genome_pruned$OTU
 
-saveRDS(otu_pathway_table, "otu_pathway_table.RDS")
-write.table(otu_pathway_table, "otu_pathway_table.txt", sep = "\t",
+saveRDS(otu_pathway_table, "pathways/otu_pathway_table.RDS")
+write.table(otu_pathway_table, "pathways/otu_pathway_table.txt", sep = "\t",
             row.names = TRUE, col.names = TRUE, quote = FALSE)
 
 

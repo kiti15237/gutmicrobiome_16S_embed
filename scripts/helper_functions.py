@@ -30,6 +30,7 @@ from sklearn.metrics import average_precision_score
 from inspect import signature
 from sklearn.metrics import f1_score
 from sklearn.metrics import average_precision_score
+from sklearn.metrics import fbeta_score
 
 
 def asinh(otu):
@@ -254,38 +255,48 @@ def makeMappingNumeric(map_train, map_test, number_criteria, cat_criteria):
     return(map_train_correct, map_test_correct)
 
 
-def predictIBD(X_train, y_train, X_test, y_test, graphTitle = "", max_depth = 12, n_estimators = 140, plot = False, plot_pr = False, weight = 20, feat_imp = False):
+def predictIBD(X_train, y_train, X_test, y_test, graph_title = "", max_depth = 12, n_estimators = 140, plot = False, plot_pr = False, weight = 20, feat_imp = False, flipped = False):
     weights = {0:1, 1:weight}
-    m = OneVsRestClassifier(RandomForestClassifier(max_depth= max_depth, random_state=0, n_estimators= n_estimators, class_weight = weights))
+    m = RandomForestClassifier(max_depth= max_depth, random_state=0, n_estimators= n_estimators, class_weight = weights)
     m.fit(X_train, y_train)
     probs = m.predict_proba(X_test)
     probs_train = m.predict_proba(X_train)
+    roc_auc, fpr, tpr, precision, f1, f2 = computeMLstats(m, data = X_test, y = y_test, plot = plot, plot_pr = plot_pr, graph_title = graph_title, flipped = flipped)
+    
 
+    feat_imp_sort = getFeatureImportance(m, data = X_train, y = y_train)
+    
+    return(m, roc_auc, None, fpr, tpr, precision, f1, f2, feat_imp_sort)
+
+ 
+def getFeatureImportance(m, data, y):
+    feat_imp = m.feature_importances_
+    feat_imp_labeled = zip(data.columns.values, feat_imp)
+    feat_imp_sort = sorted(feat_imp_labeled, key = lambda t: t[1], reverse = True)
+    return(feat_imp_sort)
+
+def computeMLstats(m, data, y, plot = False, plot_pr = False, graph_title = None, flipped = False):
+    probs = m.predict_proba(data)
+    
+    #Flip for opposite class imbalance
+    if flipped:
+        y = [1 - i for i in y]
+        probs = 1 - probs
+    
     # Compute ROC curve and area the curve
-    fpr, tpr, thresholds = roc_curve(y_test, probs[:, 1])
-    fpr_train, tpr_train, thresholds_train = roc_curve(y_train, probs_train[:, 1])
-
+    fpr, tpr, thresholds = roc_curve(y, probs[:, 1])
     roc_auc = auc(fpr, tpr)
-    roc_auc_train = auc(fpr_train, tpr_train)
+
     
     #Compute precision-recall
-    
-    precision, recall, _ = precision_recall_curve(y_test, probs[:,1])
+    precision, recall, _ = precision_recall_curve(y, probs[:,1])
 
     #avg_pr = average_precision_score(precision, recall)
-    average_precision = average_precision_score(y_test, probs[:,1])
+    average_precision = average_precision_score(y, probs[:,1])
     
-    f1 = f1_score(y_test, np.argmax(probs, axis = 1))
-
-    feat_imp_sort = None
-    if feat_imp:
-        m1 = RandomForestClassifier(max_depth= max_depth, random_state=0,
-                                                       n_estimators= n_estimators, class_weight= weights)
-        m1.fit(X_train, y_train)
-        feat_imp = m1.feature_importances_
-        feat_imp_labeled = zip(X_test.columns.values, feat_imp)
-        feat_imp_sort = sorted(feat_imp_labeled, key = lambda t: t[1], reverse = True)
-
+    f1 = f1_score(y, np.argmax(probs, axis = 1))
+    f2 = fbeta_score(y, np.argmax(probs, axis = 1), beta = 2)
+    
     if plot:
         plt.subplot(1, 2, 1)
         plt.plot(fpr, tpr, lw=2, alpha=0.3, label='AUC ROC = %0.2f' %  roc_auc)
@@ -294,7 +305,7 @@ def predictIBD(X_train, y_train, X_test, y_test, graphTitle = "", max_depth = 12
         plt.legend(loc="lower right")
         x = np.linspace(0, 1, 10)
         plt.plot(x, x)
-        plt.title(graphTitle)
+        plt.title(graph_title)
         plt.xlabel('False positive rate')
         plt.ylabel('True positive rate')
         
@@ -313,7 +324,7 @@ def predictIBD(X_train, y_train, X_test, y_test, graphTitle = "", max_depth = 12
         plt.ylim([0.0, 1.05])
         plt.xlim([0.0, 1.0])
     
-    return(roc_auc, roc_auc_train, fpr, tpr, average_precision, f1, feat_imp_sort)
+    return(roc_auc, fpr, tpr, average_precision, f1, f2)
 
 from scipy import interp
 from itertools import cycle
@@ -414,7 +425,8 @@ def combineData(microbe_data, mapping_data, names = []):
     micro_norm = preprocessing.scale(microbe_data)
     map_norm = preprocessing.scale(mapping_data)
     data = pd.concat([pd.DataFrame(micro_norm), pd.DataFrame(map_norm)], axis = 1)
-    data.columns = np.concatenate((names, [i for i in mapping_data.columns.values]))
+    if not names == []:
+        data.columns = np.concatenate((names, [i for i in mapping_data.columns.values]))
     return(data)
 
 def setTarget(mapping, target = ""):
@@ -424,7 +436,7 @@ def setTarget(mapping, target = ""):
 
 def getMlInput(otu_train, otu_test, map_train, map_test, target, 
                embed = False, pca_reduced = False, asinNormalized = False, percNormalized = False, pathwayEmbed = False,
-               qual_vecs = None, numComponents = 250, naming = "topics"):
+               qual_vecs = None, numComponents = 250, names = []):
     
     #split training set again to get some validation data for training hyperparameters
     otu_train_train = otu_train.sample(frac = 0.9, random_state = 10)
@@ -442,21 +454,21 @@ def getMlInput(otu_train, otu_test, map_train, map_test, target,
         X_test = combineData(embed_average(otu_test, qual_vecs), map_test, names = qual_vecs.columns.values)
     elif pca_reduced:
         pca_train, pca_val, pca_test = getPCAReduced(otu_train_train, otu_val, otu_test, components = numComponents)
-        X_train = combineData(pca_train, map_train_train, naming = naming)
-        X_val = combineData(pca_val, map_val, naming = naming)
-        X_test = combineData(pca_test, map_test, naming = naming)
+        X_train = combineData(pca_train, map_train_train, names = names)
+        X_val = combineData(pca_val, map_val, names = names)
+        X_test = combineData(pca_test, map_test, names = names)
     elif asinNormalized:
-        X_train = combineData(asinh(otu_train_train), map_train_train, naming = naming)
-        X_val = combineData(asinh(otu_val), map_val, naming = naming)
-        X_test = combineData(asinh(otu_test), map_test, naming = naming)
+        X_train = combineData(asinh(otu_train_train), map_train_train, names = names)
+        X_val = combineData(asinh(otu_val), map_val, names = names)
+        X_test = combineData(asinh(otu_test), map_test, names = names)
     elif percNormalized: 
         X_train = combineData(otu_train_train.div(otu_train_train.sum(axis=1), axis=0), map_train_train, naming = naming)
-        X_val = combineData(otu_val.div(otu_val.sum(axis=1), axis=0), map_val, naming = naming)
-        X_test = combineData(otu_test.div(otu_test.sum(axis=1), axis=0), map_test, naming = naming)
+        X_val = combineData(otu_val.div(otu_val.sum(axis=1), axis=0), map_val, names = names)
+        X_test = combineData(otu_test.div(otu_test.sum(axis=1), axis=0), map_test, names = names)
     elif pathwayEmbed:
-        X_train = combineData(embed_average(otu_train_train, pathway_table), map_train_train, naming = naming)
-        X_val = combineData(embed_average(otu_val, pathway_table), map_val, naming = naming)
-        X_test = combineData(embed_average(otu_test, pathway_table), map_test, naming = naming)
+        X_train = combineData(embed_average(otu_train_train, pathway_table), map_train_train, names = names)
+        X_val = combineData(embed_average(otu_val, pathway_table), map_val, names = names)
+        X_test = combineData(embed_average(otu_test, pathway_table), map_test, names = names)
     
     return(X_train, X_val, X_test, y_train, y_val, y_test)  
 
@@ -554,27 +566,25 @@ def embed_average(otu, qual_vecs):
     df = pd.DataFrame(np.dot(asinh(otu), qual_vecs), index = otu.index.values)
     return(df)
 
+from sklearn.model_selection import StratifiedShuffleSplit
 def crossValPrediction(otu_use, y, max_depth = 10, n_estimators = 65, weight = 5, plot = False, plot_pr = False, folds = 5):
-    f = plt.figure(figsize=(15,5))
-    kf = KFold(n_splits = folds, shuffle = True, random_state = 110)
-    kf.get_n_splits(otu_use)
+    kf = StratifiedShuffleSplit(n_splits = folds)
+    kf.get_n_splits(otu_use, y)
     
     auc_crossVal = []
     auc_prec_crossVal = []
     f1_crossVal = []
     feat_imp_crossVal = []
     i = 0
-    for train_index, val_index in kf.split(otu_use):
-        print(val_index)
+    for train_index, val_index in kf.split(otu_use, y):
         otu_train = otu_use.iloc[train_index, :]
         otu_val = otu_use.iloc[val_index, :]
         y_train = np.array(y)[train_index]
         y_val = np.array(y)[val_index]
         
         plt.subplot(1, 2, 1)
-        auc, auc_train, fpr, tpr, prec, f1, feat_imp = predictIBD(otu_train, y_train, otu_val, y_val,
+        m, auc, auc_train, fpr, tpr, prec, f1, f2, feat_imp = predictIBD(otu_train, y_train, otu_val, y_val,
                   max_depth = max_depth, n_estimators = n_estimators, weight = weight, plot = plot, plot_pr = plot_pr, feat_imp = True)
-        
         auc_crossVal.append(auc)
         auc_prec_crossVal.append(prec)
         f1_crossVal.append(f1)

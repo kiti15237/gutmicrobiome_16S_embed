@@ -12,18 +12,29 @@ import random
 
 
 
+
 def getQualVecObj(file, otu):
     qual_vecs = pd.read_csv(file, sep = " ", index_col = 0, header=None, dtype = {0:str})
     qual_vecs = qual_vecs.loc[otu.columns.values]
     return(qual_vecs)
 
+def getQualVecs(filt, otu_train):
+    filt = str(filt)[1:]
+    qual_vecs_50 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_newfilter" + filt + "_50.txt", otu_train)
+    qual_vecs_100 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_newfilter" + filt + "_100.txt", otu_train)
+    qual_vecs_250 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_newfilter" + filt + "_250.txt", otu_train)
+    qual_vecs_500 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_newfilter" + filt + "_500.txt", otu_train)
+    qual_vecs_750 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_newfilter" + filt + "_750.txt", otu_train)
+    return(qual_vecs_50, qual_vecs_100, qual_vecs_250, qual_vecs_500, qual_vecs_750)
+
+
 
 def getQualVecs2(filt, otu_train):
-    qual_vecs_50 = getQualVecObj("../data/embed/embed_.07" + "_50dim.txt", otu_train)
-    qual_vecs_100 = getQualVecObj("../data/embed/embed_.07" + "_100.txt", otu_train)
-    qual_vecs_250 = getQualVecObj("../data/embed/embed_.07" + "_250.txt", otu_train)
-    qual_vecs_500 = getQualVecObj("../data/embed/embed_.07" + "_500.txt", otu_train)
-    qual_vecs_750 = getQualVecObj("../data/embed/embed_.07" + "_750.txt", otu_train)
+    qual_vecs_50 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_new07perc_feces" + "_50.txt", otu_train)
+    qual_vecs_100 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_new07perc_feces" + "_100.txt", otu_train)
+    qual_vecs_250 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_new07perc_feces" + "_250.txt", otu_train)
+    qual_vecs_500 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_new07perc_feces" + "_500.txt", otu_train)
+    qual_vecs_750 = getQualVecObj("../data/AG_new/feces/glove_emb_AG_new07perc_feces" + "_750.txt", otu_train)
     return(qual_vecs_50, qual_vecs_100, qual_vecs_250, qual_vecs_500, qual_vecs_750)
 
 
@@ -38,8 +49,8 @@ def trainHyperParameters(X_train_list, y_train_list, X_val_list, y_val_list):
     #weights = [1,5]
 
 
-    aucs = np.zeros((len(depths) * len(n_estimators) * len(weights), 5))
-    aucs_train = np.zeros((len(depths) * len(n_estimators) * len(weights), 5))
+    aucs = np.zeros((len(depths) * len(n_estimators) * len(weights), 6))
+    aucs_train = np.zeros((len(depths) * len(n_estimators) * len(weights), 6))
     i = 0
     for depth in depths:
         for trees in n_estimators:
@@ -47,23 +58,25 @@ def trainHyperParameters(X_train_list, y_train_list, X_val_list, y_val_list):
                 auc_crossVal = []
                 auc_train_crossVal = []
                 precision_crossVal = []
+                f1_crossVal = []
                 for X_train, y_train, X_val, y_val in zip(X_train_list, y_train_list, X_val_list, y_val_list):
-                    auc, auc_train, fpr, tpr, precision = hf.predictIBD(X_train, y_train, X_val, y_val, "Embedding weighted by averaging taxa",
+                    auc, auc_train, fpr, tpr, precision, f1, _ = hf.predictIBD(X_train, y_train, X_val, y_val, "Embedding weighted by averaging taxa",
                                              max_depth = depth, n_estimators = trees, weight = weight, plot = False)
                     auc_crossVal.append(auc)
                     auc_train_crossVal.append(auc_train)
                     precision_crossVal.append(precision)
-                    
+                    f1_crossVal.append(f1)
                     
                     
                 avg_auc_crossVal = np.mean(auc_crossVal)  
                 avg_auc_train_crossVal = np.mean(auc_train_crossVal)
                 avg_precision_crossVal = np.mean(precision_crossVal)
+                avg_f1_crossVal = np.mean(f1_crossVal)
                 
-                aucs[i, :] = [avg_auc_crossVal, depth, trees, weight, avg_precision_crossVal]
-                aucs_train[i, :] = [avg_auc_train_crossVal, depth, trees, weight, avg_precision_crossVal]
+                aucs[i, :] = [avg_auc_crossVal, depth, trees, weight, avg_precision_crossVal, avg_f1_crossVal]
+                aucs_train[i, :] = [avg_auc_train_crossVal, depth, trees, weight, avg_precision_crossVal, avg_f1_crossVal]
 
-                print(depth, trees, weight, avg_auc_train_crossVal, avg_auc_crossVal, avg_precision_crossVal)
+                print(depth, trees, weight, avg_auc_train_crossVal, avg_auc_crossVal, avg_precision_crossVal, avg_f1_crossVal)
                 i = i + 1
                 
                  
@@ -71,6 +84,75 @@ def trainHyperParameters(X_train_list, y_train_list, X_val_list, y_val_list):
 
 
 
+
+def getEmbedPlotData(otu_train, otu_test, map_train, map_test, filt, target = "IBD", folds = 10, save_dir = ""):
+    print(filt)
+    if save_dir == "":
+        print("Provide save directory")
+    #Get appropriate quality vector objects from file
+    if filt is None:
+        qual_vecs_50, qual_vecs_100, qual_vecs_250, qual_vecs_500, qual_vecs_750 = getQualVecs2(filt, otu_train)
+        
+    else:
+        qual_vecs_50, qual_vecs_100, qual_vecs_250, qual_vecs_500, qual_vecs_750 = getQualVecs(filt, otu_train)
+       
+    
+    #Train hyperparameters on embeddings at each dimension
+    dims = [50, 100, 250, 500, 750]
+    i = 0
+    embed_aucs = []
+    embed_aucs_train = []
+    for qual_vecs in [qual_vecs_50, qual_vecs_100, qual_vecs_250, qual_vecs_500, qual_vecs_750]:
+        print("Embed " + str(dims[i]))
+        X_train_list, X_val_list, X_test, y_train_list, y_val_list, y_test = hf.getCrossValMlInput(otu_train, otu_test, map_train, map_test,target = target, embed = True, qual_vecs = qual_vecs, folds = folds)
+        
+        embed_aucs_tmp, embed_aucs_train_tmp = trainHyperParameters(X_train_list, y_train_list, X_val_list, y_val_list)
+        embed_aucs.append(embed_aucs_tmp)
+        embed_aucs_train.append(embed_aucs_train_tmp)
+        i = i + 1
+        
+        
+    #Save object
+    ##f = open(save_dir + "embed_aucs.obj", "wb")
+    #pickle.dump(embed_aucs, f)
+    #f.close()
+    return(embed_aucs)
+    
+def getPcaPlotData(otu_train, otu_test, map_train, map_test, filt, target = "IBD", folds = 10, save_dir =""):
+    dims = [50, 100, 250, 500, 750]
+    if save_dir == "":
+        print("Provide save directory")
+    #Train hyperparameters on pca reduced at each dimension
+    pca_aucs = []
+    pca_aucs_train = []
+    for dim in dims:
+        print("PCA " + str(dim))
+        X_train_list, X_val_list, X_test, y_train_list, y_val_list, y_test = hf.getCrossValMlInput(otu_train, otu_test, map_train, map_test, 
+                                                                target = target, pca_reduced = True, numComponents = dim, folds = folds)
+        pca_aucs_tmp, pca_aucs_train_tmp = trainHyperParameters(X_train_list, y_train_list, X_val_list, y_val_list)
+        pca_aucs.append(pca_aucs_tmp)
+        pca_aucs_train.append(pca_aucs_train_tmp)
+ 
+    #Save object
+    #f = open(save_dir + "pca_aucs.obj", "wb")
+    #pickle.dump(pca_aucs, f)
+    #f.close()
+    return(pca_aucs)
+
+    
+def getAsinPlotData(otu_train, otu_test, map_train, map_test, filt, target = "IBD", folds = 10, save_dir = ""):
+    print("Asin")
+    if save_dir == "":
+        print("Provide save directory")
+    X_train_list, X_val_list, X_test_list, y_train_list, y_val_list, y_test = hf.getCrossValMlInput(otu_train, otu_test, map_train, map_test, 
+                                                                target = target, asinNormalized = True, folds = folds)
+    asin_aucs, asin_aucs_train = trainHyperParameters(X_train_list, y_train_list, X_val_list, y_val_list)
+    
+    #Save object
+    #f = open(save_dir + "asin_aucs.obj", "wb")
+    #pickle.dump(asin_aucs, f)
+    #f.close()
+    return(asin_aucs)
 
 def getPlotData(asin_aucs, embed_aucs, pca_aucs):
     aucs_plot = pd.concat([pd.DataFrame(asin_aucs), 
@@ -233,3 +315,7 @@ def plotRobustness(aucs_plot,y, pvals, numTaxa = 0):
     ax.text((x1+x2)*.5, z + p_offset,  "p = " + '%.3e' % pvals[4], ha='center', va='bottom', color=col, fontsize = p_fontsize)
     
     return(fig)
+    #handles_box, _ = ax.get_legend_handles_labels()
+    #chartBox = ax.get_position()
+    #ax.set_position([chartBox.x0, chartBox.y0, chartBox.width*0.6, chartBox.height])
+    #ax.legend(loc='upper center', bbox_to_anchor=(1.2, 0.8), shadow=True, ncol=1, title = "Dim. Red. Method")

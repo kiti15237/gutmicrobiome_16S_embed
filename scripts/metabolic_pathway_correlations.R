@@ -5,39 +5,30 @@ library(RColorBrewer)
 library(cowplot)
 library(pheatmap)
 
-setwd("C:/Users/ctata/Documents/Lab/quality_vectors/data/AG_new/feces")
+setwd("C:/Users/ctata/Documents/Lab/quality_vectors_git/data")
 data_dir = "C:/Users/ctata/Documents/Lab/quality_vectors_git/data/"
 pathway_dir = paste(data_dir, "/pathways/", sep = "")
 
-#################################
-### Read in sequence ids file ###
-#################################
-seqs_fasta <- read.table("C:/Users/ctata/Documents/Lab/quality_vectors/data/AG_new/feces/piph/seqs_filter.07_piph.fasta", quote="\"", comment.char="")
-headers <- gsub(">", "", as.character(seqs_fasta[seq(1, nrow(seqs_fasta), 2), ]))
-seqs <- as.character(seqs_fasta[seq(2, nrow(seqs_fasta), 2), ])
-seq_id_df <- data.frame(headers)
-rownames(seq_id_df) <- seqs
 
-v <- readRDS("pca_embedded_taxa.rds")
-rownames(v) <- as.character(seq_id_df[rownames(v), ])
+v <- readRDS(paste(pathway_dir, "pca_embedded_taxa.rds", sep = ""))
+
 
 
 ####################################
 ###  Read qual vecs  ###############
 ####################################
 
-glove_emb <- read.table("C:/Users/ctata/Documents/Lab/quality_vectors_git/data/AG_new/embed/glove_emb_AG_newfilter.07_100.txt",
+glove_emb <- read.table("C:/Users/ctata/Documents/Lab/quality_vectors_git/data/embed/glove_emb_AG_newfilter.07_100.txt",
                         quote="\"", comment.char="", row.names = 1, sep = " ", header = F)
 
 glove_emb = glove_emb[-which(rownames(glove_emb) == '<unk>'), ]
-rownames(glove_emb) <- as.character(seq_id_df[rownames(glove_emb), ])
-
+colnames(glove_emb) <- paste("property_100_", seq(1, 100), sep = "")
 
 ###################################
 ###   Get pathway table   #########
 ###################################
 
-pathway_table <- readRDS("C:/Users/ctata/Documents/Lab/quality_vectors_git/data/AG_new/pathways/otu_pathway_table.RDS")
+pathway_table <- readRDS("C:/Users/ctata/Documents/Lab/quality_vectors_git/data/pathways/otu_pathway_table.RDS")
 keep <- colSums(pathway_table) > 0
 keep2 <- colSums(pathway_table) < nrow(pathway_table)
 pathway_table <- pathway_table[, keep & keep2]
@@ -48,7 +39,6 @@ pathway_table <- pathway_table[, keep & keep2]
 #####################################
 
 embed_table_glove <- glove_emb
-colnames(embed_table_glove) <- paste("dim", seq(1, ncol(embed_table_glove)), sep = "")
 embed_table_pca <- v[,1:100]
 colnames(embed_table_pca) <- paste("pca", seq(1, ncol(embed_table_pca)), sep = "")
 
@@ -62,9 +52,9 @@ embed_table_glove <- apply(embed_table_glove, 2, function(x) return((x - mean(x)
 
 
 
-########################################################################
-### Find correlations between embedding dimensions and pathway table####
-########################################################################
+####################################
+###  Functions #####################
+####################################
 
 getCorMat <- function(embedding_table, pathway_table){
   cor_list <- list()
@@ -78,11 +68,91 @@ getCorMat <- function(embedding_table, pathway_table){
   return(cor_mat)
 }
 
+
+getMaxCorr <- function(embed_table, pathway_table){
+  cor_mat <- getCorMat(embed_table, pathway_table)
+  max_corr_inx <- apply(cor_mat, 1, function(cor_vec){
+    return(which(cor_vec == max(cor_vec))[1])
+  })
+  return(colnames(pathway_table)[max_corr_inx])
+}
+
+
 makeNullPathwayTable_reorder <- function(pathway_table){
   new_order <- sample(seq(1, nrow(pathway_table)), size = nrow(pathway_table))
   return(pathway_table[new_order, ])
 }
 
+getTopNPathways <- function(cor_mat, n = 20){
+  topN <- apply(cor_mat, 1, function(prop_path_cor){
+    sorted <- sort(prop_path_cor, decreasing = T)
+    return(names(sorted)[1:n])
+  })
+  return(topN)
+}
+
+
+permutationTest <- function(embed_vec, pathway_table){
+  set.seed(123)
+  #Find pathway with the highest correlation
+  corrs <- apply(pathway_table, 2, cor, embed_vec)
+  max_corr <- max(corrs)
+  max_inx <- which(corrs == max_corr)
+  
+  #If we do the exact same process with randomly generated data multiple times, what are the chances we see a correlation has 
+  #high as we did?
+  maxPerm = 1000
+  null_max_corrs <- c()
+  for(iter in seq(1, maxPerm)){
+    nullTable <- makeNullPathwayTable_reorder(pathway_table)
+    corrs_null <- apply(nullTable, 2, cor, embed_vec)
+    max_corr_null <- max(abs(corrs_null), na.rm = T)
+    max_inx <- which(abs(corrs_null) == abs(max_corr_null))
+    null_max_corrs <- c(null_max_corrs, max_corr_null)
+  }
+  pval <- sum(abs(null_max_corrs) >= abs(max_corr), na.rm=T) / maxPerm
+  pval
+  
+  return(list(max_corr = max_corr,
+              max_inx = max_inx,
+              null_dist = null_max_corrs,
+              pval = pval))
+}
+
+
+plotHeatmap <- function(cor_mat_list){
+  breaksList = seq(-0.35, 0.35, by = .01)
+  colors<-colorRampPalette(rev(brewer.pal(n=7,name="RdYlBu")))(length(breaksList))
+  labs<- c("pca", "embed", "pca_null", "embed_null")
+  i = 1
+  heatmaps <- list()
+  for(mat in cor_mat_list){
+    if(i == 2){
+      legend = T
+    }else{
+      legend = F
+    }
+    if(i ==1  | i == 2 | i ==3 | i == 4){
+      col_labels = rep(" ", ncol(mat))
+    }
+    row_labels <- rep(" ", nrow(mat))
+    
+    heatmaps[[i]] <- pheatmap(mat, color = colors, breaks = breaksList,
+                              treeheight_col = 0, treeheight_row = 0, 
+                              labels_row = row_labels, labels_col = col_labels, 
+                              border_color = NA, legend = F)
+    #dev.off()
+    i = i + 1
+  }
+  
+  p <- plot_grid(heatmaps[[1]][[4]], heatmaps[[2]][[4]],
+                 heatmaps[[3]][[4]], heatmaps[[4]][[4]])
+  p
+  
+  pdf("../figures/cor_metabolic_pathways_grid.pdf", width = 5, height = 5)
+  p
+  dev.off()
+}
 
 
 #############################################################
@@ -95,92 +165,51 @@ cor_mat_glove <- getCorMat(embed_table_glove, pathway_table)
 cor_mat_pca_null <- getCorMat(embed_table_pca, null_pathway_table)
 cor_mat_glove_null <- getCorMat(embed_table_glove, null_pathway_table)
 
-breaksList = seq(-0.35, 0.35, by = .01)
-colors<-colorRampPalette(rev(brewer.pal(n=7,name="RdYlBu")))(length(breaksList))
-labs<- c("pca", "embed", "pca_null", "embed_null")
-i = 1
-heatmaps <- list()
-for(mat in list(cor_mat_pca,cor_mat_glove,cor_mat_pca_null, cor_mat_glove_null  )){
-  #f = paste("C:/Users/ctata/Documents/Lab/quality_vectors/figures/", labs[i], "_pathway_heatmap.pdf", sep = "" )
-  #print(f)
-  #pdf(f, width = 20, height = 15)
-  if(i == 2){
-    legend = T
-  }else{
-    legend = F
-  }
-  if(i ==1  | i == 2 | i ==3 | i == 4){
-    col_labels = rep(" ", ncol(mat))
-  }
-  row_labels <- rep(" ", nrow(mat))
-  
-  heatmaps[[i]] <- pheatmap(mat, color = colors, breaks = breaksList,
-                            treeheight_col = 0, treeheight_row = 0, 
-                            labels_row = row_labels, labels_col = col_labels, 
-                            border_color = NA, legend = F)
-  #dev.off()
-  i = i + 1
-}
-
-p <- plot_grid(heatmaps[[1]][[4]], heatmaps[[2]][[4]],
-               heatmaps[[3]][[4]], heatmaps[[4]][[4]])
-p
-
-pdf("../../../figures/cor_metabolic_pathways_grid.pdf", width = 5, height = 5)
-p
-dev.off()
-
-setwd("C:/Users/ctata/Documents/Lab/quality_vectors/figures")
-pdf("legend.pdf", width = 5, height = 5)
-tmp <- pheatmap(mat, color = colors, breaks = breaksList,
-         treeheight_col = 0, treeheight_row = 0, 
-         labels_row = row_labels, labels_col = col_labels, 
-         border_color = NA, legend = T)
-tmp
-dev.off()
-
-title <- ggdraw() + draw_label("Embedding dimensions correlate with metabolic pathways", fontface='bold')
-plot_grid(title, p, ncol=1, rel_heights=c(0.1, .3)) # rel_heights values control title margins
-#heatmap.2(as.matrix(rbind(cor_mat_glove_df, cor_mat_pca_df)))
-pheatmap(as.matrix(cor_mat_glove))
+plotHeatmap(list(cor_mat_pca, cor_mat_glove, cor_mat_pca_null, cor_mat_glove_null))
 
 
-makeNullPathwayTable <- function(pathway_table){
-  ps <- colMeans(pathway_table)
-  nullCols <- lapply(ps, function(p) return(rbinom(n = nrow(pathway_table), size = 1, p = p)))
-  nullPathwayTable <- data.frame(matrix(unlist(nullCols), byrow = F, ncol = length(nullCols)))
-  colnames(nullPathwayTable) <- names(nullCols)
-  return(nullPathwayTable)
-}
 
 
-getMaxCorr <- function(embed_vec, pathway_table){
-  set.seed(123)
-  #Find pathway with the highest correlation
-  corrs <- apply(pathway_table, 2, cor, embed_vec)
-  max_corr <- max(corrs)
-  max_inx <- which(corrs == max_corr)
-  
-  #If we do the exact same process with randomly generated data multiple times, what are the chances we see a correlation has 
-  #high as we did?
-  maxPerm = 10000
-  null_max_corrs <- c()
-  for(iter in seq(1, maxPerm)){
-    nullTable <- makeNullPathwayTable_reorder(pathway_table)
-    corrs_null <- apply(nullTable, 2, cor, embed_vec)
-    max_corr_null <- max(abs(corrs_null), na.rm = T)
-    max_inx <- which(abs(corrs_null) == abs(max_corr_null))
-    null_max_corrs <- c(null_max_corrs, max_corr_null)
-  }
-  pval <- sum(abs(null_max_corrs) >= abs(max_corr), na.rm=T) / maxPerm
-  pval
+###################################################################
+############# get top pathway for each property ###################
+###################################################################
 
-  return(list(max_corr = max_corr,
-              max_inx = max_inx,
-              null_dist = null_max_corrs,
-              pval = pval))
-}
+corr_matches <- getMaxCorr(embed_table_glove, pathway_table)
+path_names <- sapply(corr_matches, function(path_id){
+  entry <- keggGet(paste("map", path_id, sep = ""))
+  path_name <- entry[[1]]$NAME
+  return(path_name)
+})
+df <- data.frame(colnames(embed_table_glove), corr_matches, path_names)
+colnames(df) <- c("dim",	"pathway_id", 	"pathway_names")
+write.table(df, "pathways/property_pathway_dict.txt", sep = "\t", quote = F, row.names = F)
 
+
+#which pathway got picked a lot?
+pathway_hits <- table(names(unlist(lapply(corr_matches, function(x) return(x$max_inx)))))
+#out of 148 possible biological pathways, 54 had high correspondence with an embedding dimension or more. 
+#There are 78 Desert pathways that are almost always present or almost always absent
+
+
+####################################################################
+#############  Get top 20 pathways for each property  ##############
+####################################################################
+
+top20Paths <- getTopNPathways(cor_mat_glove, n = 20)
+top20Paths_named <- apply(top20Paths, 2, function(path_ids){
+  lentries <- lapply(paste("map", path_ids, sep = ""), function(path) return(keggGet(path)))
+  pathway_names <- unlist(lapply(lentries, function(entry) return(entry[[1]]$NAME)))
+  return(pathway_names)
+})
+#Get pathway id to name dictionary
+
+top20Paths_df <- top20Paths_named
+colnames(top20Paths_df) <- colnames(embed_table_glove)
+colnames(top20Paths) <- colnames(embed_table_glove)
+top20Paths_ids <- apply(top20Paths, 2, function(x) return(paste("ko", x, sep = "")))
+
+write.table(top20Paths_df, "pathways/top20Paths_per_property_names.csv", sep = ",", row.names = F)
+write.table(top20Paths_ids, "pathways/top20Paths_per_property_ids.csv", sep = ",", row.names = F)
 
 #####################################################################
 ###########  Calculate and save p values from permuation test #######
@@ -192,7 +221,7 @@ numGroups <- 100 / increment
 #  end <- (i * increment)
 #  corr_matches <- lapply(seq(start,end), function(i){
 #    print(i)
-#    return(getMaxCorr(embedding_table[ , i], pathway_table))
+#    return(permutationTest(embedding_table[ , i], pathway_table))
 #  })
 #  file <- paste("C:/Users/ctata/Documents/Lab/quality_vectors/data/AG_new/feces/piph/corr_matches_pca_", start, "_", end, ".RDS", sep = "")
 #  print(file)
@@ -228,117 +257,6 @@ corr_matches_pca <- readRDS(paste(pathway_dir, "corr_matches_pca.rds", sep = "")
 unlist(lapply(corr_matches_glove, function(x) return(x$pval)))
 unlist(lapply(corr_matches_pca, function(x) return(x$pval))) 
 
-#From this exercise, I've convinced myself that there must be some real correspondence between the dimensions in embedding space and 
-#some real biological function
-#Get the id of the pathway each embedding dimension aligned to
-
-pathway_id_match <- lapply(corr_matches, function(x) return(x$max_inx)) #names are embedding dimension
-names(pathway_id_match) <- paste("embed_", seq(1, length(corr_matches)), sep = "")
-
-
-#which pathway got picked a lot?
-pathway_hits <- table(names(unlist(lapply(corr_matches, function(x) return(x$max_inx)))))
-#out of 148 possible biological pathways, 66 had high correspondence with an embedding dimension or more. 
-#There are 78 Desert pathways that are almost always present or almost always absent
-
-#Get pathway id to name dictionary
-lentries <- lapply(paste("map", names(pathway_hits), sep = ""), function(path) return(keggGet(path)))
-pathway_names <- unlist(lapply(lentries, function(entry) return(entry[[1]]$NAME)))
-pathway_id_name_dict <- as.list(pathway_names)
-names(pathway_id_name_dict) <- names(pathway_hits)
-
-#Get names of all the pathways that match an embedding dimension
-embedding_pathways <- lapply(pathway_id_match, function(x) return(pathway_id_name_dict[names(x)[1]]))
-names(embedding_pathways) <- names(pathway_id_match)
-
-
-#Save properties and their corresponding metabolic pathways
-df <- data.frame(dim = names(embedding_pathways), 
-                 pathway_id =sapply(strsplit(names(unlist(embedding_pathways)), split = "\\."), `[`, 2) ,
-                 pathway_names = unlist(embedding_pathways))
-
-write.table(df, "piph/dim_pathway_dict.txt", sep = "\t", quote = F, row.names = F, col.names = T)
-
-#Get distance matrix
-  # dot product
-  cosine_sim <- cosine(t(glove_emb))
-  #magnitudes
-  mags = apply(glove_emb, 1, function(vec) return(sqrt(sum(vec^2))))
-  
-  tmp = apply(dot_product, 1, function(vec) return(vec / mags))
-  cosine_sim = apply(tmp, 2, function(vec) return(vec / mags))
-  
-  cosine_dist = 1 - cosine_sim
-  
-  cosine_dist <- as.dist(cosine_dist)
-  
-#Permanova
-perm = adonis(cosine_dist ~ Phylum, tax_table, permutation = 5)
-  
-embed <- function(otu, qual_vecs){
-  return(otu %*% qual_vecs)
-}
-  
-
-##CCA
-#Samples in metadata space
-#Samples in property spac
-
-#otu table
-otu = read.table("C:/Users/ctata/Documents/Lab/quality_vectors/data/AG_new/feces/otu_filtered_AG_07perc_feces.csv", 
-                 sep = "\t", row.names = 1, header = T)
-
-otu_use = otu[rownames(glove_emb), ]
-otu_use = t(otu_use)
-rownames(otu_use) <- gsub("X", "", rownames(otu_use))
-
-
-
-
-#mapping 
-mapping = read.delim2("C:/Users/ctata/Documents/Lab/quality_vectors/data/AG_new/AG_mapping.txt", stringsAsFactors=FALSE, row.names = 1)
-mapping_use <- mapping[data.frame(mapping)$HMP_SITE == "FECAL", ]
-sample_names <- intersect(rownames(mapping_use) , rownames(otu_use))
-mapping_use <- mapping_use[sample_names, ]
-mapping_use <- mapping_use[ , !(grepl("VIOSCREEN", colnames(mapping_use)))]
-mapping_use <- data.frame(mapping_use)
-
-
-
-otu_use <- otu_use[sample_names, ]
-
-#Embed
-embeded_otu <- embed(as.matrix(otu_use), as.matrix(glove_emb))
-
-
-#check
-rownames(embeded_otu) == rownames(mapping_use)
-
-#formula
-vars = c("IBD", "EXERCISE_FREQUENCY", "SEX", "ONE_LITER_OF_WATER_A_DAY_FREQUENCY", 
-         "SEAFOOD_FREQUENCY", "PROBIOTIC_FREQUENCY", "OLIVE_OIL", "FRUIT_FREQUENCY", 
-         "SLEEP_DURATION", "SUGAR_SWEETENED_DRINK_FREQUENCY", "MILK_CHEESE_FREQUENCY",
-         "RED_MEAT_FREQUENCY","MEAT_EGGS_FREQUENCY", "VEGETABLE_FREQUENCY")
-
-embeded_otu <- embeded_otu - min(embeded_otu)
-
-ps <- phyloseq(otu_table(embeded_otu, taxa_are_rows = F), sample_data(mapping_use))
-samples_cosine_dist <- 1 - cosine(t(otu_use))
-plotCCA(ps, as.dist(samples_cosine_dist), color = "IBD", type = "species")
-
-form <- formula(paste("embeded_otu ~ ", paste(vars, collapse = "+"), sep = ""))
-cca_obj <- cca(form, data = mapping_use)
-
-#Taxa in pathway space
-#Taxa in property space
-
-
-
-
-
-
-
-
 
 #Check out the desert
 tmp <- pheatmap(cor_mat_glove)
@@ -352,4 +270,47 @@ hist(colSums(pathway_table[ , -which(colnames(pathway_table) %in% desert_pathway
 
 
 
+###########################################################################
+## For each property, find the lowest correlation that's still sig. #######
+###########################################################################
+library(pbapply)
 
+findAllSig <- function(embed_vec, pathway_table){
+  set.seed(123)
+  #Find pathway with the highest correlation
+  corrs <- apply(pathway_table, 2, cor, embed_vec)
+  corrs <- sort(corrs, decreasing = T)
+  #If we do the exact same process with randomly generated data multiple times, what are the chances we see a correlation has 
+  #high as we did?
+  maxPerm = 1000
+  null_max_corrs <- c()
+  for(iter in seq(1, maxPerm)){
+    nullTable <- makeNullPathwayTable_reorder(pathway_table)
+    corrs_null <- apply(nullTable, 2, cor, embed_vec)
+    max_corr_null <- max(abs(corrs_null), na.rm = T)
+    max_inx <- which(abs(corrs_null) == abs(max_corr_null))
+    null_max_corrs <- c(null_max_corrs, max_corr_null)
+  }
+  return(corrs[corrs > max(null_max_corrs)])
+}
+
+getPathwayNames <- function(pathway_ids){
+  lentries <- lapply(paste("map", pathway_ids, sep = ""), function(path) return(keggGet(path)))
+  pathway_names <- unlist(lapply(lentries, function(entry) return(entry[[1]]$NAME)))
+  return(pathway_names)
+}
+
+allSigCorrs <- pbapply(embed_table_glove, 2, findAllSig, pathway_table)
+sigCorrs_ids <- lapply(allSigCorrs, function(i) return(names(i)))
+sigCorrs_vals <- lapply(allSigCorrs, function(i) return(as.numeric(i)))
+allSigPathNames <- lapply(allSigCorrs_ids, function(i) return(getPathwayNames(i)))
+
+prop_label <- c()
+for(i in seq(1, length(allSigCorrs))){
+  prop_label <- c(prop_label, rep(paste("property_100_", i, sep = ""), length(allSigCorrs[[i]])))
+}
+
+
+df <- data.frame(property = prop_label, path_id = as.character(unlist(sigCorrs_ids)), path_name = as.character(unlist(allSigPathNames)), corr_val = unlist(sigCorrs_vals))
+
+write.table(df, "pathways/property_pathway_dict_allsig.txt", row.names = F, col.names = T, quote = F, sep = "\t")
