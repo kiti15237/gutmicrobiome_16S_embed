@@ -19,19 +19,19 @@ fig_dir = "C:/Users/ctata/Documents/Lab/quality_vectors_git/figures/"
 
 #Load data
 filt = ".07"
-f = open(data_dir + "/AG_new/otu_train_" + str(filt) + ".obj", "rb")
+f = open(data_dir + "/AG_new/filter_.07/otu_train_" + str(filt) + ".obj", "rb")
 otu_train = pickle.load(f)
 f.close()
 
-f = open(data_dir + "/AG_new/otu_test_" + str(filt) + ".obj", "rb")
+f = open(data_dir + "/AG_new/filter_.07/otu_test_" + str(filt) + ".obj", "rb")
 otu_test = pickle.load(f)
 f.close()
 
-f = open(data_dir + "/AG_new/map_train_" + str(filt) + ".obj", "rb")
+f = open(data_dir + "/AG_new/filter_.07/map_train_strictDiag" + ".obj", "rb")
 map_train = pickle.load(f)
 f.close()
 
-f = open(data_dir + "/AG_new/map_test_" + str(filt) +  ".obj", "rb")
+f = open(data_dir + "/AG_new/filter_.07/map_test_strictDiag" +  ".obj", "rb")
 map_test = pickle.load(f)
 f.close()
 
@@ -41,23 +41,23 @@ otu_train = hf.matchOtuQual(otu_train, embed_ids, embed_seqs)
 otu_test = hf.matchOtuQual(otu_test, embed_ids, embed_seqs)
 
 
-def asinFig():
+def asinFig(target = "IBD"):
     #Normalize with asinh
-    target = "IBD"
+    
     f = plt.figure(figsize=(15,5))
     X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
                                                                 target = target, asinNormalized = True)
     X_train = pd.concat([X_train, X_val], axis = 0)
     y_train = y_train + y_val
     plt.subplot(1, 2, 1)
-    auc_asin, auc_train_asin, fpr_asin, tpr_asin, prec_asin, f1_asin, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "Normalized asinh Taxa Abundances " + str(X_train.shape[1]) + " features",
-                  max_depth = 2, n_estimators = 50, weight = 20, plot = True, plot_pr = True)
+    m, auc_asin, auc_train_asin, fpr_asin, tpr_asin, prec_asin, f1_asin, f2_asin, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graph_title = "Normalized asinh Taxa Abundances " + str(X_train.shape[1]) + " features",
+                  max_depth = 5, n_estimators = 170, weight = 20, plot = True, plot_pr = True)
 
-    f.savefig(fig_dir + "curves_AGP_test_asin_tmp.pdf")
+    f.savefig(fig_dir + "curves_AGP_test_asin.pdf")
 
 
 
-def embedFig():
+def embedFig(target = "IBD"):
     #Embed
     f = plt.figure(figsize=(15,5))
     X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
@@ -65,26 +65,32 @@ def embedFig():
     X_train = pd.concat([X_train, X_val], axis = 0)
     y_train = y_train + y_val
     plt.subplot(1, 2, 1)
-    auc_embed, auc_train_embed, fpr_embed, tpr_embed, prec_embed, f1_embed, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "Embedding weighted by averaging taxa "+ str(X_train.shape[1]) + " features",
-                  max_depth = 2, n_estimators = 50,  weight = 20, plot = True, plot_pr = True)
+    m, auc_embed, auc_train_embed, fpr_embed, tpr_embed, prec_embed, f1_embed, f2_embed, _ = hf.predictIBD(X_train, y_train, X_test, y_test, graph_title = "Embedding weighted by averaging taxa "+ str(X_train.shape[1]) + " features",
+                  max_depth = 5, n_estimators = 95,  weight = 20, plot = True, plot_pr = True)
 
-    f.savefig(fig_dir + "curves_AGP_test_embed_tmp.pdf")
+    f.savefig(fig_dir + "curves_AGP_test_embed.pdf")
 
 
-def pcaFig():
+def pcaFig(target = "IBD"):
     f = plt.figure(figsize=(15,5))
     X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
                                                                 target = target, pca_reduced = True, numComponents = 100)
     X_train = pd.concat([X_train, X_val], axis = 0)
     y_train = y_train + y_val
     plt.subplot(1, 2, 1)
-    auc_pca, auc_train_pca, fpr_pca, tpr_pca, prec_pca, f1_pca, _  = hf.predictIBD(X_train, y_train, X_test, y_test, graphTitle = "PCA dimensionality reduced " + str(X_train.shape[1]) + " features", 
-                  max_depth = 2, n_estimators = 50, weight = 20, plot = True, plot_pr = True)
-    f.savefig(fig_dir + "curves_AGP_test_pca_tmp.pdf")
+    m, auc_pca, auc_train_pca, fpr_pca, tpr_pca, prec_pca, f1_pca, f2_pca, _  = hf.predictIBD(X_train, y_train, X_test, y_test, graph_title = "PCA dimensionality reduced " + str(X_train.shape[1]) + " features", 
+                  max_depth = 5, n_estimators = 50, weight = 20, plot = True, plot_pr = True)
+    f.savefig(fig_dir + "curves_AGP_test_pca.pdf")
 
 ##########################################################################
-##### Analyze decision tree to get directionality of influence #############
+##### Analyze decision tree to get directionality of influence ###########
 ##########################################################################
+asinFig()
+embedFig()
+pcaFig()
+
+
+
 importlib.reload(hf)
 target = "IBD"
 X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_test, map_train, map_test, 
@@ -92,7 +98,7 @@ X_train, X_val, X_test, y_train, y_val, y_test = hf.getMlInput(otu_train, otu_te
 X = pd.concat([X_train, X_val, X_test], axis = 0)
 y = y_train + y_val + y_test
 
-auc_crossVal, auc_prec_crossVal, f1_crossVal, feat_imp_embed = hf.crossValPrediction(X, y, max_depth = 2, n_estimators = 50,  weight = 20)
+auc_crossVal, auc_prec_crossVal, f1_crossVal, f2_crossVal, feat_imp_embed = hf.crossValPrediction(X, y, max_depth = 2, n_estimators = 50,  weight = 20)
 feat_imp_df = hf.getFeatImpDf(feat_imp_embed)
 
 pathway_table = pd.read_csv(data_dir + "pathways/property_pathway_dict.txt",
@@ -209,4 +215,4 @@ for prop in feat_imp_df_paths.index.values:
 feat_imp_df_paths.insert(3, "Association", association)
 feat_imp_df_paths.insert(4, "Diff Num. Trees Associated", diffMag)
 feat_imp_df_paths
-feat_imp_df_paths.to_csv(data_dir + "AG_new/metabolic_pathways_importance.csv")
+feat_imp_df_paths.to_csv(data_dir + "AG_new/metabolic_pathways_importance_strictDiag.csv")
